@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  pelaksana_inspeksi
+  kepala_bagian
+}
+
+enum Status {
+  draft
+  submitted
+  pending_approval
+  approved
+  rejected
+}
+
+enum Cuaca {
+  cerah
+  mendung
+  hujan
+}
+
+enum WaktuInspeksiCL {
+  pagi
+  siang
+  malam
+}
+
+enum WaktuInspeksiFORM {
+  pagi
+  siang
+  sore
+}
+
+enum EntityType {
+  checklist
+  form
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  fullName  String   @map("full_name")
+  nip       String?
+  role      Role
+  createdAt DateTime @default(now()) @map("created_at")
+
+  createdChecklists           Checklist[]      @relation("ChecklistCreator")
+  approvedChecklistsPelaksana Checklist[]      @relation("ChecklistApprovedPelaksana")
+  approvedChecklistsKepala    Checklist[]      @relation("ChecklistApprovedKepala")
+
+  createdForms                InspectionForm[] @relation("FormCreator")
+  approvedFormsPelaksana      InspectionForm[] @relation("FormApprovedPelaksana")
+  approvedFormsKepala         InspectionForm[] @relation("FormApprovedKepala")
+
+  activities                  ActivityHistory[] @relation("ActivityPerformer")
+
+  @@map("users")
+}
+
+model Checklist {
+  id             Int             @id @default(autoincrement())
+  hari           String
+  tanggal        DateTime        @db.Date
+  jam            String
+  cuaca          Cuaca
+  waktuInspeksi  WaktuInspeksiCL @map("waktu_inspeksi")
+
+  perlengkapanPeralatan Json @default("[]") @map("perlengkapan_peralatan")
+  kendaraan             Json @default("[]")
+  alatPelindungDiri     Json @default("[]") @map("alat_pelindung_diri")
+  petugasInspeksi       Json @default("[]") @map("petugas_inspeksi")
+
+  status Status @default(draft)
+
+  createdById Int  @map("created_by")
+  createdBy   User @relation("ChecklistCreator", fields: [createdById], references: [id])
+
+  approvedByPelaksanaId Int?      @map("approved_by_pelaksana")
+  approvedByPelaksana   User?     @relation("ChecklistApprovedPelaksana", fields: [approvedByPelaksanaId], references: [id])
+  approvedByPelaksanaAt DateTime? @map("approved_by_pelaksana_at")
+
+  approvedByKepalaId  Int?      @map("approved_by_kepala")
+  approvedByKepala    User?     @relation("ChecklistApprovedKepala", fields: [approvedByKepalaId], references: [id])
+  approvedByKepalaAt  DateTime? @map("approved_by_kepala_at")
+
+  rejectionReason String?  @map("rejection_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  inspectionForm InspectionForm?
+
+  @@map("checklists")
+}
+
+model InspectionForm {
+  id          Int       @id @default(autoincrement())
+  checklistId Int       @unique @map("checklist_id")
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  hari          String
+  tanggal       DateTime          @db.Date
+  jam           String
+  cuaca         Cuaca
+  waktuInspeksi WaktuInspeksiFORM @map("waktu_inspeksi")
+
+  kondisiPermukaan Json @default("{}") @map("kondisi_permukaan")
+  markaDanRambu    Json @default("{}") @map("marka_dan_rambu")
+  kebersihanArea   Json @default("{}") @map("kebersihan_area")
+  obstacle         Json @default("{}")
+  burungBinatang   Json @default("{}") @map("burung_binatang")
+  pagarSisiUdara   Json @default("{}") @map("pagar_sisi_udara")
+  masaBerlakuNotam Json @default("{}") @map("masa_berlaku_notam")
+  drainase         Json @default("{}")
+
+  petugasInspeksi Json @default("[]") @map("petugas_inspeksi")
+  fodImages       Json @default("[]") @map("fod_images")
+
+  status Status @default(draft)
+
+  createdById Int  @map("created_by")
+  createdBy   User @relation("FormCreator", fields: [createdById], references: [id])
+
+  approvedByPelaksanaId Int?      @map("approved_by_pelaksana")
+  approvedByPelaksana   User?     @relation("FormApprovedPelaksana", fields: [approvedByPelaksanaId], references: [id])
+  approvedByPelaksanaAt DateTime? @map("approved_by_pelaksana_at")
+
+  approvedByKepalaId  Int?      @map("approved_by_kepala")
+  approvedByKepala    User?     @relation("FormApprovedKepala", fields: [approvedByKepalaId], references: [id])
+  approvedByKepalaAt  DateTime? @map("approved_by_kepala_at")
+
+  rejectionReason String?  @map("rejection_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  @@map("inspection_forms")
+}
+
+model ActivityHistory {
+  id         Int        @id @default(autoincrement())
+  entityType EntityType @map("entity_type")
+  entityId   Int        @map("entity_id")
+  action     String
+  oldStatus  String?    @map("old_status")
+  newStatus  String?    @map("new_status")
+
+  performedById Int  @map("performed_by")
+  performedBy   User @relation("ActivityPerformer", fields: [performedById], references: [id])
+
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("activity_history")
+}
