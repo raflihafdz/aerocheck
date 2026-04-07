@@ -6,7 +6,10 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public paths
-  if (pathname === '/login' || pathname.startsWith('/api/auth') || pathname.startsWith('/api/seed') || pathname.startsWith('/api/init-db') || pathname.startsWith('/_next') || pathname === '/favicon.ico') {
+  const publicPaths = ['/login', '/api/auth', '/api/seed', '/api/init-db', '/_next', '/favicon.ico'];
+  const isPublic = publicPaths.some(path => pathname === path || pathname.startsWith(path + '/'));
+
+  if (isPublic) {
     // If logged in and trying to access login, redirect to dashboard
     if (pathname === '/login' && token) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
