@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
         drainase: body.drainase || {},
         petugasInspeksi: body.petugasInspeksi || [],
         fodImages: body.fodImages || [],
+        documentationImages: body.documentationImages || [],
         status: 'draft',
         createdById: user.id,
       },

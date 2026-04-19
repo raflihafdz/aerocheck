@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/auth';
 import { v2 as cloudinary } from 'cloudinary';
 
+// Validate environment variables
+if (!process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 
+    !process.env.CLOUDINARY_API_KEY || 
+    !process.env.CLOUDINARY_API_SECRET) {
+  console.error('Missing Cloudinary environment variables');
+}
+
 cloudinary.config({
   cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -36,6 +43,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ error: 'Gagal mengupload gambar' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload gambar';
+    
+    // Check if it's a Cloudinary configuration error
+    if (errorMessage.includes('Invalid cloud_name')) {
+      return NextResponse.json({ 
+        error: 'Konfigurasi Cloudinary tidak valid. Silakan periksa NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME di file .env.local' 
+      }, { status: 500 });
+    }
+    
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

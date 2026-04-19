@@ -21,6 +21,13 @@ interface FodImage {
   url: string;
   publicId: string;
   caption: string;
+  itemId?: string;  // Link ke item inspeksi tertentu
+}
+
+interface DocumentationImage {
+  url: string;
+  publicId: string;
+  caption: string;
 }
 
 export default function CreateFormPage() {
@@ -43,6 +50,7 @@ export default function CreateFormPage() {
   const [petugasNama2, setPetugasNama2] = useState('');
 
   const [fodImages, setFodImages] = useState<FodImage[]>([]);
+  const [documentationImages, setDocumentationImages] = useState<DocumentationImage[]>([]);
 
   // Initialize inspection data for all sections
   const [inspectionData, setInspectionData] = useState<{ [sectionKey: string]: InspectionData }>(() => {
@@ -107,6 +115,59 @@ export default function CreateFormPage() {
     setFodImages(prev => prev.map((img, i) => i === index ? { ...img, caption } : img));
   };
 
+  const updateFodItemId = (index: number, itemId: string) => {
+    setFodImages(prev => prev.map((img, i) => i === index ? { ...img, itemId: itemId || undefined } : img));
+  };
+
+  const handleUploadDocumentation = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+    if (documentationImages.length >= 2) {
+      showToast('warning', 'Maksimal 2 gambar dokumentasi lapangan');
+      e.target.value = '';
+      return;
+    }
+    setUploading(true);
+    try {
+      const file = e.target.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        setDocumentationImages(prev => [...prev, { url: data.url, publicId: data.publicId, caption: '' }]);
+      } else {
+        showToast('error', 'Gagal mengupload gambar');
+      }
+    } catch {
+      showToast('error', 'Gagal mengupload gambar');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeDocumentationImage = (index: number) => {
+    setDocumentationImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateDocumentationCaption = (index: number, caption: string) => {
+    setDocumentationImages(prev => prev.map((img, i) => i === index ? { ...img, caption } : img));
+  };
+
+  // Get all level 2 items for dropdown
+  const getAllLevel2Items = (): Array<{ id: string; label: string }> => {
+    const items: Array<{ id: string; label: string }> = [];
+    ALL_FORM_SECTIONS.forEach(section => {
+      section.items.forEach(item => {
+        if (item.level === 2) {
+          items.push({ id: item.id, label: item.label });
+        }
+      });
+    });
+    return items;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!checklistId) { showToast('warning', 'Pilih checklist terlebih dahulu'); return; }
@@ -124,6 +185,7 @@ export default function CreateFormPage() {
         waktuInspeksi,
         petugasInspeksi,
         fodImages,
+        documentationImages,
       };
 
       // Map section keys to API field names
@@ -316,6 +378,37 @@ export default function CreateFormPage() {
           </div>
         ))}
 
+        {/* Dokumentasi Lapangan Images */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">📸 Dokumentasi Lapangan <span className="text-sm font-normal text-gray-600">(Maksimal 2 gambar)</span></h2>
+          <div className="space-y-4">
+            <label className={`flex items-center justify-center border-2 border-dashed rounded-lg px-6 py-8 cursor-pointer transition-colors ${uploading ? 'border-gray-300 bg-gray-50' : 'border-blue-300 hover:border-blue-400 hover:bg-blue-50'}`}>
+              <div className="text-center">
+                {uploading ? (
+                  <div className="flex items-center gap-2"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div><span className="text-sm text-gray-500">Mengupload...</span></div>
+                ) : (
+                  <><span className="text-3xl">📷</span><p className="text-sm text-gray-600 mt-2">Klik untuk upload dokumentasi lapangan</p></>
+                )}
+              </div>
+              <input type="file" accept="image/*" onChange={handleUploadDocumentation} disabled={uploading} className="hidden" />
+            </label>
+            {documentationImages.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {documentationImages.map((img, idx) => (
+                  <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img.url} alt={`Dokumentasi ${idx + 1}`} className="w-full h-40 object-cover" />
+                    <div className="p-3 space-y-2">
+                      <input type="text" value={img.caption} onChange={e => updateDocumentationCaption(idx, e.target.value)} placeholder="Keterangan dokumentasi..." className="w-full border border-gray-200 rounded px-3 py-1.5 text-sm" />
+                      <button type="button" onClick={() => removeDocumentationImage(idx)} className="text-red-500 hover:text-red-700 text-sm font-medium">🗑 Hapus</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* FOD Images */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">📸 Foto FOD (Foreign Object Debris)</h2>
@@ -340,6 +433,15 @@ export default function CreateFormPage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={img.url} alt={`FOD ${idx + 1}`} className="w-full h-40 object-cover" />
                     <div className="p-3 space-y-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Objek Inspeksi (Opsional)</label>
+                        <select value={img.itemId || ''} onChange={e => updateFodItemId(idx, e.target.value)} className="w-full border border-gray-200 rounded px-3 py-1.5 text-sm">
+                          <option value="">-- Pilih Objek Inspeksi --</option>
+                          {getAllLevel2Items().map(item => (
+                            <option key={item.id} value={item.id}>{item.label}</option>
+                          ))}
+                        </select>
+                      </div>
                       <input type="text" value={img.caption} onChange={e => updateFodCaption(idx, e.target.value)} placeholder="Keterangan foto..." className="w-full border border-gray-200 rounded px-3 py-1.5 text-sm" />
                       <button type="button" onClick={() => removeFodImage(idx)} className="text-red-500 hover:text-red-700 text-sm font-medium">🗑 Hapus</button>
                     </div>

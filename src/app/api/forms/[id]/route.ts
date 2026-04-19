@@ -59,6 +59,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         drainase: body.drainase,
         petugasInspeksi: body.petugasInspeksi,
         fodImages: body.fodImages,
+        documentationImages: body.documentationImages,
         status: existing.status === 'rejected' ? 'draft' : undefined,
         rejectionReason: existing.status === 'rejected' ? null : undefined,
       },
