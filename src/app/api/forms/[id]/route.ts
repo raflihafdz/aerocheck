@@ -12,8 +12,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       where: { id: parseInt(id) },
       include: {
         createdBy: { select: { id: true, fullName: true, role: true, nip: true } },
-        approvedByPelaksana: { select: { id: true, fullName: true } },
-        approvedByKepala: { select: { id: true, fullName: true, nip: true } },
+        approvedBy: { select: { id: true, fullName: true, nip: true } },
         checklist: true,
       },
     });

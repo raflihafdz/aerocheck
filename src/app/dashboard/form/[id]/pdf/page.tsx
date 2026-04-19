@@ -50,10 +50,10 @@ interface FormData {
   documentationImages?: DocumentationImage[];
   status: string;
   createdBy: { fullName: string; nip?: string };
-  approvedByPelaksana?: { fullName: string } | null;
-  approvedByPelaksanaAt?: string | null;
-  approvedByKepala?: { fullName: string; nip?: string } | null;
-  approvedByKepalaAt?: string | null;
+  pelaksanaSignature?: string | null;
+  pelaksanaSignatureAt?: string | null;
+  kepalaSignature?: string | null;
+  kepalaSignatureAt?: string | null;
   checklist: {
     id: number;
     hari: string;
@@ -65,8 +65,8 @@ interface FormData {
     kendaraan: Array<{ no: number; nama: string; kondisi: string; keterangan: string }>;
     alatPelindungDiri: Array<{ no: number; nama: string; jumlah: number; kondisi: string }>;
     petugasInspeksi: Array<{ no: number; nama: string }>;
-    approvedByPelaksana?: { fullName: string } | null;
-    approvedByKepala?: { fullName: string; nip?: string } | null;
+    pelaksanaSignature?: string | null;
+    kepalaSignature?: string | null;
   };
 }
 
@@ -129,30 +129,56 @@ export default function PDFPage() {
       };
 
       const addHeader = (title: string, subtitle: string) => {
-        // Kop Surat
+        // Logo dan kop surat dengan layout left-right
+        const logoSize = 18;
+        const logoX = 14;
+        const logoY = y;
+        
+        // Add logo image - use window.location.origin to get absolute URL
+        try {
+          const logoUrl = typeof window !== 'undefined' ? `${window.location.origin}/Logo_Dishub.png` : '/Logo_Dishub.png';
+          doc.addImage(logoUrl, 'PNG', logoX, logoY, logoSize, logoSize);
+        } catch (e) {
+          console.log('Logo tidak ditemukan:', e);
+        }
+        
+        // Kop surat text di tengah (sebelah logo)
+        const kopX = logoX + logoSize + 8;
+        const maxWidth = 100;
+        
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KEMENTERIAN PERHUBUNGAN', kopX, logoY + 2, { align: 'left', maxWidth });
+        
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
-        doc.text('PEMERINTAH KABUPATEN KARIMUN', pageWidth / 2, y, { align: 'center' });
-        y += 4;
-        doc.text('DINAS PERHUBUNGAN', pageWidth / 2, y, { align: 'center' });
-        y += 4;
-        doc.text('BANDARA RAJA HAJI ABDULLAH', pageWidth / 2, y, { align: 'center' });
-        y += 4;
-        doc.setFontSize(9);
+        doc.text('DIREKTORAT JENDERAL PERHUBUNGAN UDARA', kopX, logoY + 6, { align: 'left', maxWidth });
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KANTOR UNIT PENYELENGGARA BANDAR UDARA RAJA HAJI ABDULLAH', kopX, logoY + 10, { align: 'left', maxWidth });
+        
+        // Contact info on the right (3 kolom ke kanan)
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
-        doc.text('Jl. Bandara, Tanjung Balai Karimun, Kepulauan Riau 29663', pageWidth / 2, y, { align: 'center' });
-        y += 3;
-        doc.text('Telepon: (0777) 911-191 | Fax: (0777) 911-190', pageWidth / 2, y, { align: 'center' });
-        y += 4;
+        const rightX = pageWidth - 14 - 45;
+        
+        doc.text('Jl. May. Jend Sutoyo KM. 12', rightX, logoY + 2, { align: 'left', maxWidth: 45 });
+        doc.text('Telp: 077780611010', rightX, logoY + 5, { align: 'left', maxWidth: 45 });
+        doc.text('Tg. Balai Karimun', rightX, logoY + 8, { align: 'left', maxWidth: 45 });
+        doc.text('Email:', rightX, logoY + 11, { align: 'left', maxWidth: 45 });
+        doc.text('bandara.rajahajiabdullah@kemenhub.go.id', rightX, logoY + 13, { align: 'left', maxWidth: 45 });
+        
+        y = logoY + logoSize + 3;
         
         // Garis bawah kop surat
         doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.5);
+        doc.setLineWidth(0.8);
         doc.line(14, y, pageWidth - 14, y);
-        y += 5;
+        y += 6;
         
         // Judul dokumen
-        doc.setFontSize(12);
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text(title, pageWidth / 2, y, { align: 'center' });
         y += 5;
@@ -262,17 +288,36 @@ export default function PDFPage() {
       doc.text('Pelaksana Inspeksi,', 40, sigY, { align: 'center' });
       doc.text('Kepala Bagian,', pageWidth - 40, sigY, { align: 'center' });
       
-      // Garis untuk tanda tangan
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.3);
-      doc.line(25, sigY + 13, 55, sigY + 13);
-      doc.line(pageWidth - 55, sigY + 13, pageWidth - 25, sigY + 13);
-      
-      doc.text(cl.approvedByPelaksana?.fullName || '_______________', 40, sigY + 16, { align: 'center' });
-      doc.text(cl.approvedByKepala?.fullName || '_______________', pageWidth - 40, sigY + 16, { align: 'center' });
-      if (cl.approvedByKepala?.nip) {
-        doc.text(`NIP: ${cl.approvedByKepala.nip}`, pageWidth - 40, sigY + 20, { align: 'center' });
+      // Add signature images if available
+      if (cl.pelaksanaSignature) {
+        try {
+          doc.addImage(cl.pelaksanaSignature, 'PNG', 20, sigY + 4, 40, 12);
+        } catch (e) {
+          console.log('Error adding pelaksana signature', e);
+        }
       }
+      if (cl.kepalaSignature) {
+        try {
+          doc.addImage(cl.kepalaSignature, 'PNG', pageWidth - 60, sigY + 4, 40, 12);
+        } catch (e) {
+          console.log('Error adding kepala signature', e);
+        }
+      }
+      
+      // Garis untuk tanda tangan (jika tidak ada signature)
+      if (!cl.pelaksanaSignature) {
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.line(25, sigY + 13, 55, sigY + 13);
+      }
+      if (!cl.kepalaSignature) {
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.line(pageWidth - 55, sigY + 13, pageWidth - 25, sigY + 13);
+      }
+      
+      doc.text('_______________', 40, sigY + 18, { align: 'center' });
+      doc.text('_______________', pageWidth - 40, sigY + 18, { align: 'center' });
 
       // ====== PAGE 2+: FORM.01 ======
       doc.addPage();
@@ -376,16 +421,38 @@ export default function PDFPage() {
       doc.text('Pelaksana Inspeksi,', 40, sigY2, { align: 'center' });
       doc.text('Kepala Bagian,', pageWidth - 40, sigY2, { align: 'center' });
       
-      // Garis untuk tanda tangan
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.3);
-      doc.line(25, sigY2 + 13, 55, sigY2 + 13);
-      doc.line(pageWidth - 55, sigY2 + 13, pageWidth - 25, sigY2 + 13);
+      // Add signature images if available
+      if (form.pelaksanaSignature) {
+        try {
+          doc.addImage(form.pelaksanaSignature, 'PNG', 20, sigY2 + 4, 40, 12);
+        } catch (e) {
+          console.log('Error adding pelaksana signature', e);
+        }
+      }
+      if (form.kepalaSignature) {
+        try {
+          doc.addImage(form.kepalaSignature, 'PNG', pageWidth - 60, sigY2 + 4, 40, 12);
+        } catch (e) {
+          console.log('Error adding kepala signature', e);
+        }
+      }
       
-      doc.text(form.approvedByPelaksana?.fullName || '_______________', 40, sigY2 + 16, { align: 'center' });
-      doc.text(form.approvedByKepala?.fullName || '_______________', pageWidth - 40, sigY2 + 16, { align: 'center' });
-      if (form.approvedByKepala?.nip) {
-        doc.text(`NIP: ${form.approvedByKepala.nip}`, pageWidth - 40, sigY2 + 20, { align: 'center' });
+      // Garis untuk tanda tangan (jika tidak ada signature)
+      if (!form.pelaksanaSignature) {
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.line(25, sigY2 + 13, 55, sigY2 + 13);
+      }
+      if (!form.kepalaSignature) {
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.line(pageWidth - 55, sigY2 + 13, pageWidth - 25, sigY2 + 13);
+      }
+      
+      doc.text(form.createdBy?.fullName || '_______________', 40, sigY2 + 18, { align: 'center' });
+      doc.text(form.createdBy?.fullName || '_______________', pageWidth - 40, sigY2 + 18, { align: 'center' });
+      if (form.createdBy?.nip) {
+        doc.text(`NIP: ${form.createdBy.nip}`, pageWidth - 40, sigY2 + 22, { align: 'center' });
       }
 
       // ====== DOCUMENTATION IMAGES PAGE ======
@@ -393,30 +460,50 @@ export default function PDFPage() {
         doc.addPage();
         y = 15;
         
-        // Kop Surat
+        // Logo dan kop surat dengan layout left-right
+        const logoSize2 = 18;
+        const logoX2 = 14;
+        const logoY2 = y;
+        
+        try {
+          doc.addImage('/Logo_Dishub.png', 'PNG', logoX2, logoY2, logoSize2, logoSize2);
+        } catch (e) {
+          console.log('Logo tidak ditemukan:', e);
+        }
+        
+        const kopX2 = logoX2 + logoSize2 + 8;
+        const maxWidth2 = 100;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KEMENTERIAN PERHUBUNGAN', kopX2, logoY2 + 2, { align: 'left', maxWidth: maxWidth2 });
+        
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
-        doc.text('PEMERINTAH KABUPATEN KARIMUN', pageWidth / 2, y, { align: 'center' });
-        y += 4;
-        doc.text('DINAS PERHUBUNGAN', pageWidth / 2, y, { align: 'center' });
-        y += 4;
-        doc.text('BANDARA RAJA HAJI ABDULLAH', pageWidth / 2, y, { align: 'center' });
-        y += 4;
-        doc.setFontSize(9);
+        doc.text('DIREKTORAT JENDERAL PERHUBUNGAN UDARA', kopX2, logoY2 + 6, { align: 'left', maxWidth: maxWidth2 });
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KANTOR UNIT PENYELENGGARA BANDAR UDARA RAJA HAJI ABDULLAH', kopX2, logoY2 + 10, { align: 'left', maxWidth: maxWidth2 });
+        
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
-        doc.text('Jl. Bandara, Tanjung Balai Karimun, Kepulauan Riau 29663', pageWidth / 2, y, { align: 'center' });
-        y += 3;
-        doc.text('Telepon: (0777) 911-191 | Fax: (0777) 911-190', pageWidth / 2, y, { align: 'center' });
-        y += 4;
+        const rightX2 = pageWidth - 14 - 45;
+        doc.text('Jl. May. Jend Sutoyo KM. 12', rightX2, logoY2 + 2, { align: 'left', maxWidth: 45 });
+        doc.text('Telp: 077780611010', rightX2, logoY2 + 5, { align: 'left', maxWidth: 45 });
+        doc.text('Tg. Balai Karimun', rightX2, logoY2 + 8, { align: 'left', maxWidth: 45 });
+        doc.text('Email:', rightX2, logoY2 + 11, { align: 'left', maxWidth: 45 });
+        doc.text('bandara.rajahajiabdullah@kemenhub.go.id', rightX2, logoY2 + 13, { align: 'left', maxWidth: 45 });
+        
+        y = logoY2 + logoSize2 + 3;
         
         // Garis bawah kop surat
         doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.5);
+        doc.setLineWidth(0.8);
         doc.line(14, y, pageWidth - 14, y);
-        y += 5;
+        y += 6;
         
         // Judul
-        doc.setFontSize(12);
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text('DOKUMENTASI LAPANGAN', pageWidth / 2, y, { align: 'center' });
         y += 5;
@@ -460,30 +547,50 @@ export default function PDFPage() {
         doc.addPage();
         y = 15;
         
-        // Kop Surat
+        // Logo dan kop surat dengan layout left-right
+        const logoSize3 = 18;
+        const logoX3 = 14;
+        const logoY3 = y;
+        
+        try {
+          doc.addImage('/Logo_Dishub.png', 'PNG', logoX3, logoY3, logoSize3, logoSize3);
+        } catch (e) {
+          console.log('Logo tidak ditemukan:', e);
+        }
+        
+        const kopX3 = logoX3 + logoSize3 + 8;
+        const maxWidth3 = 100;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KEMENTERIAN PERHUBUNGAN', kopX3, logoY3 + 2, { align: 'left', maxWidth: maxWidth3 });
+        
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
-        doc.text('PEMERINTAH KABUPATEN KARIMUN', pageWidth / 2, y, { align: 'center' });
-        y += 4;
-        doc.text('DINAS PERHUBUNGAN', pageWidth / 2, y, { align: 'center' });
-        y += 4;
-        doc.text('BANDARA RAJA HAJI ABDULLAH', pageWidth / 2, y, { align: 'center' });
-        y += 4;
-        doc.setFontSize(9);
+        doc.text('DIREKTORAT JENDERAL PERHUBUNGAN UDARA', kopX3, logoY3 + 6, { align: 'left', maxWidth: maxWidth3 });
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KANTOR UNIT PENYELENGGARA BANDAR UDARA RAJA HAJI ABDULLAH', kopX3, logoY3 + 10, { align: 'left', maxWidth: maxWidth3 });
+        
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
-        doc.text('Jl. Bandara, Tanjung Balai Karimun, Kepulauan Riau 29663', pageWidth / 2, y, { align: 'center' });
-        y += 3;
-        doc.text('Telepon: (0777) 911-191 | Fax: (0777) 911-190', pageWidth / 2, y, { align: 'center' });
-        y += 4;
+        const rightX3 = pageWidth - 14 - 45;
+        doc.text('Jl. May. Jend Sutoyo KM. 12', rightX3, logoY3 + 2, { align: 'left', maxWidth: 45 });
+        doc.text('Telp: 077780611010', rightX3, logoY3 + 5, { align: 'left', maxWidth: 45 });
+        doc.text('Tg. Balai Karimun', rightX3, logoY3 + 8, { align: 'left', maxWidth: 45 });
+        doc.text('Email:', rightX3, logoY3 + 11, { align: 'left', maxWidth: 45 });
+        doc.text('bandara.rajahajiabdullah@kemenhub.go.id', rightX3, logoY3 + 13, { align: 'left', maxWidth: 45 });
+        
+        y = logoY3 + logoSize3 + 3;
         
         // Garis bawah kop surat
         doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.5);
+        doc.setLineWidth(0.8);
         doc.line(14, y, pageWidth - 14, y);
-        y += 5;
+        y += 6;
         
         // Judul
-        doc.setFontSize(12);
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text('DOKUMENTASI FOTO LAPANGAN (FOD)', pageWidth / 2, y, { align: 'center' });
         y += 5;
@@ -582,8 +689,8 @@ export default function PDFPage() {
         <div className="bg-gray-50 rounded-lg p-4 text-left text-sm space-y-2">
           <div className="flex justify-between"><span className="text-gray-500">Halaman 1</span><span className="font-medium">Check List (CL.01)</span></div>
           <div className="flex justify-between"><span className="text-gray-500">Halaman 2+</span><span className="font-medium">Formulir Inspeksi (FORM.01)</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Pelaksana</span><span className="font-medium">{form.approvedByPelaksana?.fullName || '-'}</span></div>
-          <div className="flex justify-between"><span className="text-gray-500">Kepala Bagian</span><span className="font-medium">{form.approvedByKepala?.fullName || '-'}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Dibuat oleh</span><span className="font-medium">{form.createdBy?.fullName || '-'}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">Tanda Tangan</span><span className="font-medium">{form.pelaksanaSignature && form.kepalaSignature ? '✅ Lengkap' : '⏳ Belum'}</span></div>
         </div>
 
         <button onClick={generatePDF} disabled={generating} className="inline-flex items-center gap-2 px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium text-lg transition-colors">

@@ -69,8 +69,8 @@ export default function CreateFormPage() {
     fetch('/api/checklists')
       .then(r => r.json())
       .then(data => {
-        const approved = (Array.isArray(data) ? data : []).filter((c: { status: string }) => c.status === 'approved');
-        setChecklists(approved);
+        const submitted = (Array.isArray(data) ? data : []).filter((c: { status: string }) => c.status === 'submitted' || c.status === 'approved');
+        setChecklists(submitted);
       });
   }, []);
 

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ALL_FORM_SECTIONS, FormInspectionItem } from '@/lib/form-constants';
 import { useToast } from '@/components/toast';
 import { useAuth } from '@/contexts/auth-context';
+import { SignaturePad } from '@/components/signature-pad';
 
 interface InspectionItemData {
   ada: boolean;
@@ -37,10 +38,12 @@ interface InspectionForm {
   fodImages: Array<{ url: string; publicId: string; caption: string }>;
   status: string;
   createdBy: { id: number; fullName: string; role: string; nip?: string };
-  approvedByPelaksana?: { id: number; fullName: string } | null;
-  approvedByPelaksanaAt?: string | null;
-  approvedByKepala?: { id: number; fullName: string; nip?: string } | null;
-  approvedByKepalaAt?: string | null;
+  approvedBy?: { id: number; fullName: string; nip?: string } | null;
+  approvedAt?: string | null;
+  pelaksanaSignature?: string | null;
+  pelaksanaSignatureAt?: string | null;
+  kepalaSignature?: string | null;
+  kepalaSignatureAt?: string | null;
   rejectionReason?: string | null;
   checklist: { id: number; status: string; tanggal: string };
   createdAt: string;
@@ -57,10 +60,10 @@ interface HistoryItem {
 }
 
 const statusColor = (s: string) => {
-  switch (s) { case 'draft': return 'bg-gray-100 text-gray-700'; case 'pending_approval': return 'bg-yellow-100 text-yellow-700'; case 'approved': return 'bg-green-100 text-green-700'; case 'rejected': return 'bg-red-100 text-red-700'; default: return 'bg-gray-100 text-gray-700'; }
+  switch (s) { case 'draft': return 'bg-gray-100 text-gray-700'; case 'submitted': return 'bg-yellow-100 text-yellow-700'; case 'pending_approval': return 'bg-yellow-100 text-yellow-700'; case 'approved': return 'bg-green-100 text-green-700'; case 'rejected': return 'bg-red-100 text-red-700'; default: return 'bg-gray-100 text-gray-700'; }
 };
 const statusLabel = (s: string) => {
-  switch (s) { case 'draft': return 'Draft'; case 'pending_approval': return 'Pending Approval'; case 'approved': return 'Approved'; case 'rejected': return 'Rejected'; default: return s; }
+  switch (s) { case 'draft': return 'Draft'; case 'submitted': return 'Submitted'; case 'pending_approval': return 'Pending Approval'; case 'approved': return 'Approved'; case 'rejected': return 'Rejected'; default: return s; }
 };
 
 export default function FormDetailPage() {
@@ -74,6 +77,9 @@ export default function FormDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [signatureType, setSignatureType] = useState<'pelaksana' | 'kepala' | null>(null);
+  const [signatureLoading, setSignatureLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     const [formData, histData] = await Promise.all([
@@ -107,6 +113,32 @@ export default function FormDetailPage() {
       }
     } catch { showToast('error', 'Terjadi kesalahan'); }
     finally { setActionLoading(false); }
+  };
+
+  const handleSignatureCapture = async (signature: string) => {
+    if (!signatureType) return;
+    
+    setSignatureLoading(true);
+    try {
+      const res = await fetch(`/api/forms/${params.id}/signature`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signature, type: signatureType }),
+      });
+      if (res.ok) {
+        showToast('success', 'Tanda tangan berhasil disimpan');
+        await loadData();
+        setShowSignatureModal(false);
+        setSignatureType(null);
+      } else {
+        const err = await res.json();
+        showToast('error', err.error || 'Gagal menyimpan tanda tangan');
+      }
+    } catch {
+      showToast('error', 'Terjadi kesalahan');
+    } finally {
+      setSignatureLoading(false);
+    }
   };
 
   const getSectionData = (key: string): Record<string, InspectionItemData> => {
@@ -174,7 +206,7 @@ export default function FormDetailPage() {
   if (!form) return <div className="text-center py-12"><p className="text-gray-500">Form tidak ditemukan</p><Link href="/dashboard/form" className="text-blue-600 hover:underline mt-2 inline-block">Kembali</Link></div>;
 
   const canSubmit = user?.role === 'pelaksana_inspeksi' && (form.status === 'draft' || form.status === 'rejected');
-  const canApprove = user?.role === 'kepala_bagian' && form.status === 'pending_approval';
+  const canApprove = user?.role === 'kepala_bagian' && (form.status === 'submitted' || form.status === 'pending_approval');
   const canEdit = (form.status === 'draft' || form.status === 'rejected') && user?.role === 'pelaksana_inspeksi';
 
   return (
@@ -204,12 +236,12 @@ export default function FormDetailPage() {
 
       {/* Actions */}
       {(canSubmit || canApprove) && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
-          <p className="text-blue-800 font-medium">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <p className="text-blue-800 font-medium mb-3">
             {canSubmit && '📤 Form siap untuk disubmit ke Kepala Bagian'}
             {canApprove && '📋 Menunggu approval Anda'}
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {canSubmit && <button onClick={() => handleAction('submit')} disabled={actionLoading} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50">{actionLoading ? 'Proses...' : '📤 Submit'}</button>}
             {canApprove && (
               <>
@@ -220,6 +252,56 @@ export default function FormDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Signature actions */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Tanda Tangan Digital</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Pelaksana signature */}
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Tanda Tangan Pelaksana Inspeksi</h3>
+            {form.pelaksanaSignature ? (
+              <div className="space-y-2">
+                <img src={form.pelaksanaSignature} alt="Pelaksana signature" className="border border-gray-200 rounded p-2 max-h-32 w-full object-contain" />
+                <p className="text-xs font-medium text-gray-700">{form.createdBy.fullName}</p>
+                <p className="text-xs text-gray-500">{form.pelaksanaSignatureAt ? new Date(form.pelaksanaSignatureAt).toLocaleString('id-ID') : ''}</p>
+              </div>
+            ) : (
+              <>
+                {user?.role === 'pelaksana_inspeksi' ? (
+                  <button onClick={() => { setSignatureType('pelaksana'); setShowSignatureModal(true); }} className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
+                    📝 Tambah Tanda Tangan
+                  </button>
+                ) : (
+                  <p className="text-sm text-gray-400">Menunggu tanda tangan pelaksana</p>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Kepala signature */}
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Tanda Tangan Kepala Bagian</h3>
+            {form.kepalaSignature ? (
+              <div className="space-y-2">
+                <img src={form.kepalaSignature} alt="Kepala signature" className="border border-gray-200 rounded p-2 max-h-32 w-full object-contain" />
+                <p className="text-xs font-medium text-gray-700">{form.approvedBy?.fullName}</p>
+                <p className="text-xs text-gray-500">{form.kepalaSignatureAt ? new Date(form.kepalaSignatureAt).toLocaleString('id-ID') : ''}</p>
+              </div>
+            ) : (
+              <>
+                {user?.role === 'kepala_bagian' ? (
+                  <button onClick={() => { setSignatureType('kepala'); setShowSignatureModal(true); }} className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
+                    📝 Tambah Tanda Tangan
+                  </button>
+                ) : (
+                  <p className="text-sm text-gray-400">Menunggu tanda tangan kepala bagian</p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Info Umum */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -281,15 +363,14 @@ export default function FormDetailPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Informasi Approval</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="border border-gray-100 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-gray-500 mb-2">Pelaksana Inspeksi</h3>
-            {form.approvedByPelaksana ? (
-              <><p className="font-medium">{form.approvedByPelaksana.fullName}</p><p className="text-xs text-gray-400">{form.approvedByPelaksanaAt && new Date(form.approvedByPelaksanaAt).toLocaleString('id-ID')}</p></>
-            ) : <p className="text-gray-400 text-sm">Belum disubmit</p>}
+            <h3 className="text-sm font-semibold text-gray-500 mb-2">Dibuat oleh</h3>
+            <p className="font-medium">{form.createdBy.fullName}</p>
+            {form.createdBy.nip && <p className="text-xs text-gray-500">NIP: {form.createdBy.nip}</p>}
           </div>
           <div className="border border-gray-100 rounded-lg p-4">
             <h3 className="text-sm font-semibold text-gray-500 mb-2">Kepala Bagian</h3>
-            {form.approvedByKepala ? (
-              <><p className="font-medium">{form.approvedByKepala.fullName}</p>{form.approvedByKepala.nip && <p className="text-xs text-gray-500">NIP: {form.approvedByKepala.nip}</p>}<p className="text-xs text-gray-400">{form.approvedByKepalaAt && new Date(form.approvedByKepalaAt).toLocaleString('id-ID')}</p></>
+            {form.approvedBy ? (
+              <><p className="font-medium">{form.approvedBy.fullName}</p>{form.approvedBy.nip && <p className="text-xs text-gray-500">NIP: {form.approvedBy.nip}</p>}<p className="text-xs text-gray-400">{form.approvedAt && new Date(form.approvedAt).toLocaleString('id-ID')}</p></>
             ) : <p className="text-gray-400 text-sm">Belum diapprove</p>}
           </div>
         </div>
@@ -338,6 +419,14 @@ export default function FormDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Signature Modal */}
+      {showSignatureModal && signatureType && (
+        <SignaturePad
+          onSignatureCapture={handleSignatureCapture}
+          onCancel={() => { setShowSignatureModal(false); setSignatureType(null); }}
+        />
       )}
     </div>
   );

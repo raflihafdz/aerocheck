@@ -13,11 +13,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       where: { id: parseInt(id) },
       include: {
         createdBy: { select: { id: true, fullName: true, role: true, nip: true } },
-        approvedByPelaksana: { select: { id: true, fullName: true } },
-        approvedByKepala: { select: { id: true, fullName: true, nip: true } },
         inspectionForm: true,
       },
     });
+
+    // Cast to include approvedBy if needed
+    const checklistWithApprover = checklist ? { ...checklist, approvedBy: checklist.approvedById ? await prisma.user.findUnique({ where: { id: checklist.approvedById } }) : null } : null;
 
     if (!checklist) {
       return NextResponse.json({ error: 'Checklist tidak ditemukan' }, { status: 404 });

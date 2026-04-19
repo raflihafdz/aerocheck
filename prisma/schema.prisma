@@ -16,11 +16,9 @@ model User {
   role                        Role
   createdAt                   DateTime          @default(now()) @map("created_at")
   activities                  ActivityHistory[] @relation("ActivityPerformer")
-  approvedChecklistsKepala    Checklist[]       @relation("ChecklistApprovedKepala")
-  approvedChecklistsPelaksana Checklist[]       @relation("ChecklistApprovedPelaksana")
+  approvedChecklists          Checklist[]       @relation("ChecklistApproved")
+  approvedForms               InspectionForm[]  @relation("FormApproved")
   createdChecklists           Checklist[]       @relation("ChecklistCreator")
-  approvedFormsKepala         InspectionForm[]  @relation("FormApprovedKepala")
-  approvedFormsPelaksana      InspectionForm[]  @relation("FormApprovedPelaksana")
   createdForms                InspectionForm[]  @relation("FormCreator")
 
   @@map("users")
@@ -39,15 +37,16 @@ model Checklist {
   petugasInspeksi       Json            @default("[]") @map("petugas_inspeksi")
   status                Status          @default(draft)
   createdById           Int             @map("created_by")
-  approvedByPelaksanaId Int?            @map("approved_by_pelaksana")
-  approvedByPelaksanaAt DateTime?       @map("approved_by_pelaksana_at")
-  approvedByKepalaId    Int?            @map("approved_by_kepala")
-  approvedByKepalaAt    DateTime?       @map("approved_by_kepala_at")
+  approvedById          Int?            @map("approved_by")
+  approvedAt            DateTime?       @map("approved_at")
+  pelaksanaSignature    String?         @map("pelaksana_signature") @db.Text
+  pelaksanaSignatureAt  DateTime?       @map("pelaksana_signature_at")
+  kepalaSignature       String?         @map("kepala_signature") @db.Text
+  kepalaSignatureAt     DateTime?       @map("kepala_signature_at")
   rejectionReason       String?         @map("rejection_reason")
   createdAt             DateTime        @default(now()) @map("created_at")
   updatedAt             DateTime        @updatedAt @map("updated_at")
-  approvedByKepala      User?           @relation("ChecklistApprovedKepala", fields: [approvedByKepalaId], references: [id])
-  approvedByPelaksana   User?           @relation("ChecklistApprovedPelaksana", fields: [approvedByPelaksanaId], references: [id])
+  approvedBy            User?           @relation("ChecklistApproved", fields: [approvedById], references: [id])
   createdBy             User            @relation("ChecklistCreator", fields: [createdById], references: [id])
   inspectionForm        InspectionForm?
 
@@ -74,16 +73,17 @@ model InspectionForm {
   fodImages             Json              @default("[]") @map("fod_images")
   status                Status            @default(draft)
   createdById           Int               @map("created_by")
-  approvedByPelaksanaId Int?              @map("approved_by_pelaksana")
-  approvedByPelaksanaAt DateTime?         @map("approved_by_pelaksana_at")
-  approvedByKepalaId    Int?              @map("approved_by_kepala")
-  approvedByKepalaAt    DateTime?         @map("approved_by_kepala_at")
+  approvedById          Int?              @map("approved_by")
+  approvedAt            DateTime?         @map("approved_at")
+  pelaksanaSignature    String?           @map("pelaksana_signature") @db.Text
+  pelaksanaSignatureAt  DateTime?         @map("pelaksana_signature_at")
+  kepalaSignature       String?           @map("kepala_signature") @db.Text
+  kepalaSignatureAt     DateTime?         @map("kepala_signature_at")
   rejectionReason       String?           @map("rejection_reason")
   createdAt             DateTime          @default(now()) @map("created_at")
   updatedAt             DateTime          @updatedAt @map("updated_at")
   documentationImages   Json              @default("[]") @map("documentation_images")
-  approvedByKepala      User?             @relation("FormApprovedKepala", fields: [approvedByKepalaId], references: [id])
-  approvedByPelaksana   User?             @relation("FormApprovedPelaksana", fields: [approvedByPelaksanaId], references: [id])
+  approvedBy            User?             @relation("FormApproved", fields: [approvedById], references: [id])
   checklist             Checklist         @relation(fields: [checklistId], references: [id], onDelete: Cascade)
   createdBy             User              @relation("FormCreator", fields: [createdById], references: [id])
 

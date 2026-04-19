@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/components/toast';
 import { useAuth } from '@/contexts/auth-context';
+import { SignaturePad } from '@/components/signature-pad';
 
 interface Checklist {
   id: number;
@@ -19,10 +20,12 @@ interface Checklist {
   petugasInspeksi: Array<{ no: number; nama: string }>;
   status: string;
   createdBy: { id: number; fullName: string; role: string; nip?: string };
-  approvedByPelaksana?: { fullName: string } | null;
-  approvedByPelaksanaAt?: string | null;
-  approvedByKepala?: { fullName: string; nip?: string } | null;
-  approvedByKepalaAt?: string | null;
+  approvedBy?: { fullName: string; nip?: string } | null;
+  approvedAt?: string | null;
+  pelaksanaSignature?: string | null;
+  pelaksanaSignatureAt?: string | null;
+  kepalaSignature?: string | null;
+  kepalaSignatureAt?: string | null;
   rejectionReason?: string | null;
   inspectionForm?: { id: number; status: string } | null;
   createdAt: string;
@@ -41,6 +44,7 @@ interface HistoryItem {
 const statusColor = (s: string) => {
   switch(s) {
     case 'draft': return 'bg-gray-100 text-gray-700';
+    case 'submitted': return 'bg-yellow-100 text-yellow-700';
     case 'pending_approval': return 'bg-yellow-100 text-yellow-700';
     case 'approved': return 'bg-green-100 text-green-700';
     case 'rejected': return 'bg-red-100 text-red-700';
@@ -50,6 +54,7 @@ const statusColor = (s: string) => {
 const statusLabel = (s: string) => {
   switch(s) {
     case 'draft': return 'Draft';
+    case 'submitted': return 'Submitted';
     case 'pending_approval': return 'Pending Approval';
     case 'approved': return 'Approved';
     case 'rejected': return 'Rejected';
@@ -68,6 +73,9 @@ export default function ChecklistDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [signatureType, setSignatureType] = useState<'pelaksana' | 'kepala' | null>(null);
+  const [signatureLoading, setSignatureLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     const [clData, histData] = await Promise.all([
@@ -103,6 +111,32 @@ export default function ChecklistDetailPage() {
       showToast('error', 'Terjadi kesalahan');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleSignatureCapture = async (signature: string) => {
+    if (!signatureType) return;
+    
+    setSignatureLoading(true);
+    try {
+      const res = await fetch(`/api/checklists/${params.id}/signature`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signature, type: signatureType }),
+      });
+      if (res.ok) {
+        showToast('success', 'Tanda tangan berhasil disimpan');
+        await loadData();
+        setShowSignatureModal(false);
+        setSignatureType(null);
+      } else {
+        const err = await res.json();
+        showToast('error', err.error || 'Gagal menyimpan tanda tangan');
+      }
+    } catch {
+      showToast('error', 'Terjadi kesalahan');
+    } finally {
+      setSignatureLoading(false);
     }
   };
 
@@ -206,8 +240,20 @@ export default function ChecklistDetailPage() {
             </button>
           )}
 
-          {/* Kepala: Approve */}
-          {user?.role === 'kepala_bagian' && cl.status === 'pending_approval' && (
+          {/* Pelaksana: Add signature */}
+          {user?.role === 'pelaksana_inspeksi' && !cl.pelaksanaSignature && (
+            <button onClick={() => { setSignatureType('pelaksana'); setShowSignatureModal(true); }} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
+              📝 Tanda Tangan Pelaksana
+            </button>
+          )}
+          {user?.role === 'pelaksana_inspeksi' && cl.pelaksanaSignature && (
+            <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700">
+              ✓ Sudah ditanda tangan ({cl.pelaksanaSignatureAt ? new Date(cl.pelaksanaSignatureAt).toLocaleDateString('id-ID') : ''})
+            </div>
+          )}
+
+          {/* Kepala: Approve submitted checklist */}
+          {user?.role === 'kepala_bagian' && (cl.status === 'submitted' || cl.status === 'pending_approval') && (
             <>
               <button onClick={() => handleAction('approve')} disabled={actionLoading} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50">
                 {actionLoading ? 'Memproses...' : 'Approve'}
@@ -218,8 +264,20 @@ export default function ChecklistDetailPage() {
             </>
           )}
 
-          {/* Pelaksana: Create form after CL approved */}
-          {user?.role === 'pelaksana_inspeksi' && cl.status === 'approved' && !cl.inspectionForm && (
+          {/* Kepala: Add signature */}
+          {user?.role === 'kepala_bagian' && !cl.kepalaSignature && (
+            <button onClick={() => { setSignatureType('kepala'); setShowSignatureModal(true); }} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
+              📝 Tanda Tangan Kepala
+            </button>
+          )}
+          {user?.role === 'kepala_bagian' && cl.kepalaSignature && (
+            <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700">
+              ✓ Sudah ditanda tangan ({cl.kepalaSignatureAt ? new Date(cl.kepalaSignatureAt).toLocaleDateString('id-ID') : ''})
+            </div>
+          )}
+
+          {/* Pelaksana: Create form after CL submitted (no approval needed) */}
+          {user?.role === 'pelaksana_inspeksi' && (cl.status === 'submitted' || cl.status === 'approved') && !cl.inspectionForm && (
             <Link href={`/dashboard/form/create?checklistId=${cl.id}`} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
               Lanjut Isi Form Inspeksi →
             </Link>
@@ -249,20 +307,49 @@ export default function ChecklistDetailPage() {
             <span className="text-gray-500">Dibuat oleh</span>
             <span className="font-medium">{cl.createdBy.fullName}</span>
           </div>
-          {cl.approvedByPelaksana && (
+          {cl.pelaksanaSignature && (
             <div className="flex justify-between py-2 border-b border-gray-100">
-              <span className="text-gray-500">Disubmit oleh Pelaksana</span>
-              <span className="font-medium">{cl.approvedByPelaksana.fullName} - {cl.approvedByPelaksanaAt ? new Date(cl.approvedByPelaksanaAt).toLocaleString('id-ID') : ''}</span>
+              <span className="text-gray-500">Ditanda Tangan Pelaksana</span>
+              <span className="font-medium">{cl.createdBy.fullName} - {cl.pelaksanaSignatureAt ? new Date(cl.pelaksanaSignatureAt).toLocaleString('id-ID') : ''}</span>
             </div>
           )}
-          {cl.approvedByKepala && (
+          {cl.approvedBy && (
             <div className="flex justify-between py-2 border-b border-gray-100">
               <span className="text-gray-500">Diapprove oleh Kepala Bagian</span>
-              <span className="font-medium">{cl.approvedByKepala.fullName} - {cl.approvedByKepalaAt ? new Date(cl.approvedByKepalaAt).toLocaleString('id-ID') : ''}</span>
+              <span className="font-medium">{cl.approvedBy.fullName} - {cl.approvedAt ? new Date(cl.approvedAt).toLocaleString('id-ID') : ''}</span>
+            </div>
+          )}
+          {cl.kepalaSignature && (
+            <div className="flex justify-between py-2 border-b border-gray-100">
+              <span className="text-gray-500">Ditanda Tangan Kepala Bagian</span>
+              <span className="font-medium">{cl.approvedBy?.fullName} - {cl.kepalaSignatureAt ? new Date(cl.kepalaSignatureAt).toLocaleString('id-ID') : ''}</span>
             </div>
           )}
         </div>
       </div>
+
+      {/* Signature Images */}
+      {(cl.pelaksanaSignature || cl.kepalaSignature) && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="font-semibold text-gray-900 mb-4">Tanda Tangan Digital</h2>
+          <div className="grid grid-cols-2 gap-6">
+            {cl.pelaksanaSignature && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Pelaksana Inspeksi</h3>
+                <img src={cl.pelaksanaSignature} alt="Pelaksana Signature" className="border border-gray-300 rounded p-2 bg-gray-50" />
+                <p className="text-xs text-gray-600 mt-2">{cl.createdBy.fullName}</p>
+              </div>
+            )}
+            {cl.kepalaSignature && (
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Kepala Bagian</h3>
+                <img src={cl.kepalaSignature} alt="Kepala Signature" className="border border-gray-300 rounded p-2 bg-gray-50" />
+                <p className="text-xs text-gray-600 mt-2">{cl.approvedBy?.fullName}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* History */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -281,6 +368,14 @@ export default function ChecklistDetailPage() {
           {history.length === 0 && <p className="text-gray-400 text-sm">Belum ada riwayat</p>}
         </div>
       </div>
+
+      {/* Signature Modal */}
+      {showSignatureModal && signatureType && (
+        <SignaturePad
+          onSignatureCapture={handleSignatureCapture}
+          onCancel={() => { setShowSignatureModal(false); setSignatureType(null); }}
+        />
+      )}
 
       {/* Reject Modal */}
       {showRejectModal && (

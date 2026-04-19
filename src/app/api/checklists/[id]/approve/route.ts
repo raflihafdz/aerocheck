@@ -15,7 +15,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const checklist = await prisma.checklist.findUnique({ where: { id: checklistId } });
     if (!checklist) return NextResponse.json({ error: 'Checklist tidak ditemukan' }, { status: 404 });
 
-    // Pelaksana submits / approves -> status becomes pending_approval
+    // Pelaksana submits -> status becomes submitted
     if (action === 'submit' && user.role === 'pelaksana_inspeksi') {
       if (checklist.status !== 'draft' && checklist.status !== 'rejected') {
         return NextResponse.json({ error: 'Checklist tidak dalam status draft' }, { status: 400 });
@@ -24,9 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       await prisma.checklist.update({
         where: { id: checklistId },
         data: {
-          status: 'pending_approval',
-          approvedByPelaksanaId: user.id,
-          approvedByPelaksanaAt: new Date(),
+          status: 'submitted',
           rejectionReason: null,
         },
       });
@@ -35,29 +33,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         data: {
           entityType: 'checklist',
           entityId: checklistId,
-          action: 'Disubmit oleh Pelaksana Inspeksi',
+          action: 'Disubmit untuk approval',
           oldStatus: checklist.status,
-          newStatus: 'pending_approval',
+          newStatus: 'submitted',
           performedById: user.id,
-          notes: `Disubmit dan direquest approval ke Kepala Bagian`,
+          notes: `Submitted dan request final approval ke Kepala Bagian`,
         },
       });
 
-      return NextResponse.json({ message: 'Checklist berhasil disubmit untuk approval' });
+      return NextResponse.json({ message: 'Checklist berhasil disubmit' });
     }
 
-    // Kepala approves
+    // Kepala approves -> status becomes approved (final approval)
     if (action === 'approve' && user.role === 'kepala_bagian') {
-      if (checklist.status !== 'pending_approval') {
-        return NextResponse.json({ error: 'Checklist tidak dalam status pending approval' }, { status: 400 });
+      if (checklist.status !== 'submitted') {
+        return NextResponse.json({ error: 'Checklist harus dalam status submitted' }, { status: 400 });
       }
 
       await prisma.checklist.update({
         where: { id: checklistId },
         data: {
           status: 'approved',
-          approvedByKepalaId: user.id,
-          approvedByKepalaAt: new Date(),
+          approvedById: user.id,
+          approvedAt: new Date(),
         },
       });
 
@@ -65,28 +63,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         data: {
           entityType: 'checklist',
           entityId: checklistId,
-          action: 'Diapprove oleh Kepala Bagian',
-          oldStatus: 'pending_approval',
+          action: 'Approved oleh Kepala Bagian',
+          oldStatus: 'submitted',
           newStatus: 'approved',
           performedById: user.id,
-          notes: `Diapprove oleh ${user.full_name}`,
+          notes: `Approved oleh ${user.full_name}`,
         },
       });
 
       return NextResponse.json({ message: 'Checklist berhasil diapprove' });
     }
 
-    // Kepala rejects
+    // Kepala rejects -> status becomes rejected
     if (action === 'reject' && user.role === 'kepala_bagian') {
-      if (checklist.status !== 'pending_approval') {
-        return NextResponse.json({ error: 'Checklist tidak dalam status pending approval' }, { status: 400 });
+      if (checklist.status !== 'submitted') {
+        return NextResponse.json({ error: 'Checklist harus dalam status submitted' }, { status: 400 });
       }
 
       await prisma.checklist.update({
         where: { id: checklistId },
         data: {
           status: 'rejected',
-          rejectionReason: reason || 'Ditolak oleh Kepala Bagian',
+          rejectionReason: reason || 'Ditolak',
         },
       });
 
@@ -94,8 +92,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         data: {
           entityType: 'checklist',
           entityId: checklistId,
-          action: 'Ditolak oleh Kepala Bagian',
-          oldStatus: 'pending_approval',
+          action: 'Rejected oleh Kepala Bagian',
+          oldStatus: 'submitted',
           newStatus: 'rejected',
           performedById: user.id,
           notes: reason || 'Ditolak oleh Kepala Bagian',

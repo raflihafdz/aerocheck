@@ -11,8 +11,7 @@ export async function GET() {
     const checklists = await prisma.checklist.findMany({
       include: {
         createdBy: { select: { id: true, fullName: true, role: true } },
-        approvedByPelaksana: { select: { id: true, fullName: true } },
-        approvedByKepala: { select: { id: true, fullName: true } },
+        approvedBy: { select: { id: true, fullName: true, nip: true } },
         inspectionForm: { select: { id: true, status: true } },
       },
       orderBy: { createdAt: 'desc' },

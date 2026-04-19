@@ -11,8 +11,7 @@ export async function GET() {
     const forms = await prisma.inspectionForm.findMany({
       include: {
         createdBy: { select: { id: true, fullName: true, role: true } },
-        approvedByPelaksana: { select: { id: true, fullName: true } },
-        approvedByKepala: { select: { id: true, fullName: true } },
+        approvedBy: { select: { id: true, fullName: true, nip: true } },
         checklist: { select: { id: true, status: true, tanggal: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -43,8 +42,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (!checklist) return NextResponse.json({ error: 'Checklist tidak ditemukan' }, { status: 404 });
-    if (checklist.status !== 'approved') {
-      return NextResponse.json({ error: 'Checklist harus sudah diapprove terlebih dahulu' }, { status: 400 });
+    if (checklist.status !== 'submitted' && checklist.status !== 'approved') {
+      return NextResponse.json({ error: 'Checklist harus sudah disubmit terlebih dahulu' }, { status: 400 });
     }
     if (checklist.inspectionForm) {
       return NextResponse.json({ error: 'Form inspeksi sudah ada untuk checklist ini' }, { status: 400 });
