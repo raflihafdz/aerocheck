@@ -39,34 +39,51 @@ export function SignaturePad({ onSignatureCapture, onCancel }: SignaturePadProps
     setContext(ctx);
   }, []);
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getCoordinates = (e: React.TouchEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+    
+    if ('touches' in e && e.touches.length > 0) {
+      const touch = e.touches[0];
+      return {
+        x: (touch.clientX - rect.left) * (canvas.width / rect.width),
+        y: (touch.clientY - rect.top) * (canvas.height / rect.height),
+      };
+    } else if ('clientX' in e) {
+      return {
+        x: (e.clientX - rect.left) * (canvas.width / rect.width),
+        y: (e.clientY - rect.top) * (canvas.height / rect.height),
+      };
+    }
+    return { x: 0, y: 0 };
+  };
+
+  const handleStart = (e: React.TouchEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas || !context) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = getCoordinates(e);
 
     setIsDrawing(true);
     context.beginPath();
     context.moveTo(x, y);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMove = (e: React.TouchEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
     if (!isDrawing || !context) return;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = getCoordinates(e);
 
     context.lineTo(x, y);
     context.stroke();
   };
 
-  const handleMouseUp = () => {
+  const handleEnd = (e: React.TouchEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
     setIsDrawing(false);
     if (context) {
       context.closePath();
@@ -90,18 +107,29 @@ export function SignaturePad({ onSignatureCapture, onCancel }: SignaturePadProps
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
+      style={{ touchAction: 'none' }}
+      onTouchMove={(e) => e.preventDefault()}
+    >
+      <div 
+        className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4"
+        onTouchMove={(e) => e.stopPropagation()}
+      >
         <h3 className="text-lg font-semibold mb-4">Tanda Tangan Digital</h3>
         
-        <div className="border-2 border-gray-300 rounded-lg overflow-hidden mb-4 bg-white" style={{ height: '300px' }}>
+        <div className="border-2 border-gray-300 rounded-lg overflow-hidden mb-4 bg-white" style={{ height: '300px', touchAction: 'none' }}>
           <canvas
             ref={canvasRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            onMouseDown={handleStart}
+            onMouseMove={handleMove}
+            onMouseUp={handleEnd}
+            onMouseLeave={handleEnd}
+            onTouchStart={handleStart}
+            onTouchMove={handleMove}
+            onTouchEnd={handleEnd}
             className="w-full h-full cursor-crosshair"
+            style={{ touchAction: 'none', display: 'block' }}
           />
         </div>
 
