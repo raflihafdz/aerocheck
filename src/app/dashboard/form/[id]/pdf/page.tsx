@@ -219,12 +219,10 @@ export default function PDFPage() {
       runAutoTable({
         startY: y,
         head: [['No', 'Nama Peralatan', 'Jumlah', 'Kondisi']],
-        body: (cl.perlengkapanPeralatan || []).map((p: { no: number; nama: string; jumlah: number; kondisi: string }) => [
-          String(p.no), 
-          String(p.nama), 
-          String(p.jumlah), 
-          String(p.kondisi || '-').replace(/'/g, '')
-        ]),
+        body: (cl.perlengkapanPeralatan || []).map((p: { no: number; nama: string; jumlah: number; kondisi: string }) => {
+          const kondisi = typeof p.kondisi === 'string' ? p.kondisi.replace(/['"]/g, '') : String(p.kondisi || '-');
+          return [String(p.no), String(p.nama), String(p.jumlah), kondisi || '-'];
+        }),
         styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0], valign: 'middle' },
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0], fontSize: 7 },
         bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
@@ -246,12 +244,11 @@ export default function PDFPage() {
       runAutoTable({
         startY: y,
         head: [['No', 'Nama', 'Kondisi', 'Keterangan']],
-        body: (cl.kendaraan || []).map((k: { no: number; nama: string; kondisi: string; keterangan: string }) => [
-          String(k.no), 
-          String(k.nama), 
-          String(k.kondisi || '-').replace(/'/g, ''), 
-          String(k.keterangan || '-').replace(/'/g, '')
-        ]),
+        body: (cl.kendaraan || []).map((k: { no: number; nama: string; kondisi: string; keterangan: string }) => {
+          const kondisi = typeof k.kondisi === 'string' ? k.kondisi.replace(/['"]/g, '') : String(k.kondisi || '-');
+          const keterangan = typeof k.keterangan === 'string' ? k.keterangan.replace(/['"]/g, '') : String(k.keterangan || '-');
+          return [String(k.no), String(k.nama), kondisi || '-', keterangan || '-'];
+        }),
         styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0], valign: 'middle' },
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0], fontSize: 7 },
         bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
@@ -273,7 +270,10 @@ export default function PDFPage() {
       runAutoTable({
         startY: y,
         head: [['No', 'Nama APD', 'Jumlah', 'Kondisi']],
-        body: (cl.alatPelindungDiri || []).map((a: { no: number; nama: string; jumlah: number; kondisi: string }) => [String(a.no), String(a.nama), String(a.jumlah), String(a.kondisi || '-').replace(/'/g, '')]),
+        body: (cl.alatPelindungDiri || []).map((a: { no: number; nama: string; jumlah: number; kondisi: string }) => {
+          const kondisi = typeof a.kondisi === 'string' ? a.kondisi.replace(/['"]/g, '') : String(a.kondisi || '-');
+          return [String(a.no), String(a.nama), String(a.jumlah), kondisi || '-'];
+        }),
         styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0], valign: 'middle' },
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0], fontSize: 7 },
         bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
