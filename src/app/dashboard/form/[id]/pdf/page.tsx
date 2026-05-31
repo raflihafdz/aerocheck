@@ -190,17 +190,24 @@ export default function PDFPage() {
 
       // ====== PAGE 1: CL.01 Checklist ======
       const cl = form.checklist;
+      
+      if (!cl) {
+        showToast('error', 'Data checklist tidak ditemukan');
+        setGenerating(false);
+        return;
+      }
+      
       addHeader('CHECK LIST TAHAP PERSIAPAN INSPEKSI (CL.01)', 'DAERAH PERGERAKAN PESAWAT UDARA');
 
       // Info header
       doc.setFontSize(8);
       const infoY = y;
-      doc.text(`Hari: ${cl.hari}`, 14, infoY);
-      doc.text(`Tanggal: ${new Date(cl.tanggal).toLocaleDateString('id-ID')}`, 70, infoY);
-      doc.text(`Jam: ${cl.jam}`, 130, infoY);
+      doc.text(`Hari: ${cl.hari || '-'}`, 14, infoY);
+      doc.text(`Tanggal: ${cl.tanggal ? new Date(cl.tanggal).toLocaleDateString('id-ID') : '-'}`, 70, infoY);
+      doc.text(`Jam: ${cl.jam || '-'}`, 130, infoY);
       y = infoY + 4;
-      doc.text(`Cuaca: ${cl.cuaca}`, 14, y);
-      doc.text(`Waktu Inspeksi: ${cl.waktuInspeksi}`, 70, y);
+      doc.text(`Cuaca: ${cl.cuaca || '-'}`, 14, y);
+      doc.text(`Waktu Inspeksi: ${cl.waktuInspeksi || '-'}`, 70, y);
       y += 8;
 
       // 1. Perlengkapan/Peralatan
@@ -212,7 +219,7 @@ export default function PDFPage() {
       runAutoTable({
         startY: y,
         head: [['No', 'Nama Peralatan', 'Jumlah', 'Kondisi']],
-        body: cl.perlengkapanPeralatan.map((p: { no: number; nama: string; jumlah: number; kondisi: string }) => [p.no, p.nama, p.jumlah, p.kondisi || '-']),
+        body: (cl.perlengkapanPeralatan || []).map((p: { no: number; nama: string; jumlah: number; kondisi: string }) => [p.no, p.nama, p.jumlah, p.kondisi || '-']),
         styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0], valign: 'middle' },
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0], fontSize: 7 },
         bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
@@ -234,7 +241,7 @@ export default function PDFPage() {
       runAutoTable({
         startY: y,
         head: [['No', 'Nama', 'Kondisi', 'Keterangan']],
-        body: cl.kendaraan.map((k: { no: number; nama: string; kondisi: string; keterangan: string }) => [k.no, k.nama, k.kondisi || '-', k.keterangan || '-']),
+        body: (cl.kendaraan || []).map((k: { no: number; nama: string; kondisi: string; keterangan: string }) => [k.no, k.nama, k.kondisi || '-', k.keterangan || '-']),
         styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0], valign: 'middle' },
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0], fontSize: 7 },
         bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
@@ -256,7 +263,7 @@ export default function PDFPage() {
       runAutoTable({
         startY: y,
         head: [['No', 'Nama APD', 'Jumlah', 'Kondisi']],
-        body: cl.alatPelindungDiri.map((a: { no: number; nama: string; jumlah: number; kondisi: string }) => [a.no, a.nama, a.jumlah, a.kondisi || '-']),
+        body: (cl.alatPelindungDiri || []).map((a: { no: number; nama: string; jumlah: number; kondisi: string }) => [a.no, a.nama, a.jumlah, a.kondisi || '-']),
         styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0], valign: 'middle' },
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0], fontSize: 7 },
         bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
@@ -276,7 +283,7 @@ export default function PDFPage() {
       y += 4;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      cl.petugasInspeksi.forEach((p: { no: number; nama: string }) => {
+      (cl.petugasInspeksi || []).forEach((p: { no: number; nama: string }) => {
         doc.text(`${p.no}. ${p.nama}`, 14, y);
         y += 4;
       });
