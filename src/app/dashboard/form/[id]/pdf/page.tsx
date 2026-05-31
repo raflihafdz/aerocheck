@@ -382,10 +382,10 @@ export default function PDFPage() {
             tableBody.push([
               counter,
               item.label,
-              d?.ada ? '✓' : '-',
-              d?.tidakAda ? '✓' : '-',
-              d?.baik ? '✓' : '-',
-              d?.kurangBaik ? '✓' : '-',
+              d?.ada ?? false,
+              d?.tidakAda ?? false,
+              d?.baik ?? false,
+              d?.kurangBaik ?? false,
               d?.upaya || '-',
               d?.tindakLanjut || '-',
               d?.keterangan || '-',
@@ -413,6 +413,27 @@ export default function PDFPage() {
           },
           margin: { left: 14, right: 14 },
           theme: 'grid',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          didParseCell: (data: any) => {
+            if (typeof data.cell.raw === 'boolean') {
+              data.cell.text = [''];
+            }
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          didDrawCell: (data: any) => {
+            if (typeof data.cell.raw === 'boolean' && data.cell.raw) {
+              const { x, y: cellY, width, height } = data.cell;
+              const startX = x + width * 0.25;
+              const startY = cellY + height * 0.55;
+              const midX = x + width * 0.45;
+              const midY = cellY + height * 0.75;
+              const endX = x + width * 0.75;
+              const endY = cellY + height * 0.35;
+              doc.setLineWidth(0.4);
+              doc.line(startX, startY, midX, midY);
+              doc.line(midX, midY, endX, endY);
+            }
+          },
           didDrawPage: () => { y = 15; },
         });
       });
