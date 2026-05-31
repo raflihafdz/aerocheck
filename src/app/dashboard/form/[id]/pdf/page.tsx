@@ -219,7 +219,12 @@ export default function PDFPage() {
       runAutoTable({
         startY: y,
         head: [['No', 'Nama Peralatan', 'Jumlah', 'Kondisi']],
-        body: (cl.perlengkapanPeralatan || []).map((p: { no: number; nama: string; jumlah: number; kondisi: string }) => [p.no, p.nama, p.jumlah, p.kondisi || '-']),
+        body: (cl.perlengkapanPeralatan || []).map((p: { no: number; nama: string; jumlah: number; kondisi: string }) => [
+          String(p.no), 
+          String(p.nama), 
+          String(p.jumlah), 
+          String(p.kondisi || '-').replace(/'/g, '')
+        ]),
         styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0], valign: 'middle' },
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0], fontSize: 7 },
         bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
@@ -241,7 +246,12 @@ export default function PDFPage() {
       runAutoTable({
         startY: y,
         head: [['No', 'Nama', 'Kondisi', 'Keterangan']],
-        body: (cl.kendaraan || []).map((k: { no: number; nama: string; kondisi: string; keterangan: string }) => [k.no, k.nama, k.kondisi || '-', k.keterangan || '-']),
+        body: (cl.kendaraan || []).map((k: { no: number; nama: string; kondisi: string; keterangan: string }) => [
+          String(k.no), 
+          String(k.nama), 
+          String(k.kondisi || '-').replace(/'/g, ''), 
+          String(k.keterangan || '-').replace(/'/g, '')
+        ]),
         styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0], valign: 'middle' },
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0], fontSize: 7 },
         bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
@@ -263,7 +273,7 @@ export default function PDFPage() {
       runAutoTable({
         startY: y,
         head: [['No', 'Nama APD', 'Jumlah', 'Kondisi']],
-        body: (cl.alatPelindungDiri || []).map((a: { no: number; nama: string; jumlah: number; kondisi: string }) => [a.no, a.nama, a.jumlah, a.kondisi || '-']),
+        body: (cl.alatPelindungDiri || []).map((a: { no: number; nama: string; jumlah: number; kondisi: string }) => [String(a.no), String(a.nama), String(a.jumlah), String(a.kondisi || '-').replace(/'/g, '')]),
         styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0], valign: 'middle' },
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0], fontSize: 7 },
         bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
