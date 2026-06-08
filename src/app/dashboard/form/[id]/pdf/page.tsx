@@ -423,13 +423,13 @@ export default function PDFPage() {
           didDrawCell: (data: any) => {
             if (typeof data.cell.raw === 'boolean' && data.cell.raw) {
               const { x, y: cellY, width, height } = data.cell;
-              const startX = x + width * 0.25;
-              const startY = cellY + height * 0.55;
+              const startX = x + width * 0.30;
+              const startY = cellY + height * 0.52;
               const midX = x + width * 0.45;
-              const midY = cellY + height * 0.75;
-              const endX = x + width * 0.75;
-              const endY = cellY + height * 0.35;
-              doc.setLineWidth(0.4);
+              const midY = cellY + height * 0.68;
+              const endX = x + width * 0.70;
+              const endY = cellY + height * 0.38;
+              doc.setLineWidth(0.35);
               doc.line(startX, startY, midX, midY);
               doc.line(midX, midY, endX, endY);
             }
